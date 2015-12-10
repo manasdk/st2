@@ -27,9 +27,7 @@ from st2actions.runners import ActionRunner
 from st2common.util.green.shell import run_command
 from st2common import log as logging
 from st2common.constants.action import ACTION_OUTPUT_RESULT_DELIMITER
-from st2common.constants.action import LIVEACTION_STATUS_SUCCEEDED
-from st2common.constants.action import LIVEACTION_STATUS_FAILED
-from st2common.constants.action import LIVEACTION_STATUS_TIMED_OUT
+from st2common.constants.action import LIVEACTION_STATUS_SUCCEEDED, LIVEACTION_STATUS_FAILED
 from st2common.constants.error_messages import PACK_VIRTUALENV_DOESNT_EXIST
 from st2common.util.sandboxing import get_sandbox_path
 from st2common.util.sandboxing import get_sandbox_python_path
@@ -91,7 +89,7 @@ class Action(object):
             config.get('log_format', '%(name)-12s: %(levelname)-8s %(message)s'))
 
         console = stdlib_logging.StreamHandler()
-        console.setLevel(stdlib_logging.DEBUG)
+        console.setLevel(config.get('log_level', stdlib_logging.DEBUG))
         console.setFormatter(formatter)
         logger.addHandler(console)
 
@@ -194,13 +192,7 @@ class PythonRunner(ActionRunner):
         if error:
             output['error'] = error
 
-        if exit_code == 0:
-            status = LIVEACTION_STATUS_SUCCEEDED
-        elif timed_out:
-            status = LIVEACTION_STATUS_TIMED_OUT
-        else:
-            status = LIVEACTION_STATUS_FAILED
-
+        status = LIVEACTION_STATUS_SUCCEEDED if exit_code == 0 else LIVEACTION_STATUS_FAILED
         return (status, output, None)
 
     def _get_env_vars(self):
