@@ -43,6 +43,9 @@ __all__ = [
 ]
 
 LOG = logging.getLogger(__name__)
+LOG_PATH = '/var/log/st2/'
+LOG_FORMAT = '%(name)-12s: %(levelname)-8s %(message)s'
+
 
 # constants to lookup in runner_parameters.
 RUNNER_ENV = 'env'
@@ -86,7 +89,7 @@ class Action(object):
         logger = logging.getLogger(logger_name)
 
         formatter = stdlib_logging.Formatter(
-            config.get('log_format', '%(name)-12s: %(levelname)-8s %(message)s'))
+            config.get('log_format', LOG_FORMAT))
 
         console = stdlib_logging.StreamHandler()
         console.setLevel(config.get('log_level', stdlib_logging.DEBUG))
@@ -95,7 +98,7 @@ class Action(object):
 
         if config.get('log_file'):
             file = stdlib_logging.FileHandler(
-                os.path.join('/var/log/st2/', config.get('log_file')))
+                os.path.join(LOG_PATH, config.get('log_file')))
             file.setLevel(config.get('log_level', stdlib_logging.DEBUG))
             file.setFormatter(formatter)
             logger.addHandler(file)
