@@ -27,7 +27,9 @@ from st2actions.runners import ActionRunner
 from st2common.util.green.shell import run_command
 from st2common import log as logging
 from st2common.constants.action import ACTION_OUTPUT_RESULT_DELIMITER
-from st2common.constants.action import LIVEACTION_STATUS_SUCCEEDED, LIVEACTION_STATUS_FAILED
+from st2common.constants.action import LIVEACTION_STATUS_SUCCEEDED
+from st2common.constants.action import LIVEACTION_STATUS_FAILED
+from st2common.constants.action import LIVEACTION_STATUS_TIMED_OUT
 from st2common.constants.error_messages import PACK_VIRTUALENV_DOESNT_EXIST
 from st2common.util.sandboxing import get_sandbox_path
 from st2common.util.sandboxing import get_sandbox_python_path
@@ -71,13 +73,13 @@ class Action(object):
         :type config: ``dict``
         """
         self.config = config or {}
-        self.logger = self._set_up_logger()
+        self.logger = self._set_up_logger(self.config)
 
     @abc.abstractmethod
     def run(self, **kwargs):
         pass
 
-    def _set_up_logger(self):
+    def _set_up_logger(self, config):
         """
         Set up a logger which logs all the messages with level DEBUG
         and above to stderr.
@@ -85,13 +87,22 @@ class Action(object):
         logger_name = 'actions.python.%s' % (self.__class__.__name__)
         logger = logging.getLogger(logger_name)
 
+        formatter = stdlib_logging.Formatter(
+            config.get('log_format', '%(name)-12s: %(levelname)-8s %(message)s'))
+
         console = stdlib_logging.StreamHandler()
         console.setLevel(stdlib_logging.DEBUG)
-
-        formatter = stdlib_logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
         console.setFormatter(formatter)
         logger.addHandler(console)
-        logger.setLevel(stdlib_logging.DEBUG)
+
+        if config.get('log_file'):
+            file = stdlib_logging.FileHandler(
+                os.path.join('/var/log/st2/', config.get('log_file')))
+            file.setLevel(config.get('log_level', stdlib_logging.DEBUG))
+            file.setFormatter(formatter)
+            logger.addHandler(file)
+
+        logger.setLevel(config.get('log_level', stdlib_logging.DEBUG))
 
         return logger
 
@@ -183,7 +194,13 @@ class PythonRunner(ActionRunner):
         if error:
             output['error'] = error
 
-        status = LIVEACTION_STATUS_SUCCEEDED if exit_code == 0 else LIVEACTION_STATUS_FAILED
+        if exit_code == 0:
+            status = LIVEACTION_STATUS_SUCCEEDED
+        elif timed_out:
+            status = LIVEACTION_STATUS_TIMED_OUT
+        else:
+            status = LIVEACTION_STATUS_FAILED
+
         return (status, output, None)
 
     def _get_env_vars(self):
